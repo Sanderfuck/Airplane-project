@@ -71,6 +71,7 @@ public class PlaneCalculation {
         double longitudeDelta = endPoint.getLongitude() - startPoint.getLongitude();
         return Math.abs(Math.atan2(latitudeDelta, longitudeDelta));
     }
+
     private double calculatePointsDistance() {
         return Math.sqrt(Math.pow(endPoint.getHeight() - startPoint.getHeight(), 2)
                 + Math.pow(endPoint.getLatitude() - startPoint.getLatitude(), 2)

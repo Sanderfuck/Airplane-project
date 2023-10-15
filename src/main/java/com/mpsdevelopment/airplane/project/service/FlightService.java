@@ -2,7 +2,6 @@ package com.mpsdevelopment.airplane.project.service;
 
 import com.mpsdevelopment.airplane.project.exception.CustomFlightException;
 import com.mpsdevelopment.airplane.project.model.Airplane;
-import com.mpsdevelopment.airplane.project.model.AirplaneCharacteristics;
 import com.mpsdevelopment.airplane.project.model.Flight;
 import com.mpsdevelopment.airplane.project.model.TemporaryPoint;
 import com.mpsdevelopment.airplane.project.model.WayPoint;
@@ -41,18 +40,19 @@ public class FlightService {
     private final Random random = new Random();
     private final List<Airplane> airplanes = new ArrayList<>();
     private Map<Airplane, List<TemporaryPoint>> airplaneFlightMap;
+    private List<WayPoint> wayPoints;
     @Value("${airplane.quantity}")
     private int airplanesQuantity;
 
-    @Scheduled(fixedDelay = 600000)
+    @Scheduled(fixedDelay = 60000)
     public void prepareStartFlight() {
-        List<WayPoint> wayPoints = createWayPoints();
+        createWayPoints();
 
         if (airplanes.isEmpty()) {
-            createAirplanePool(airplanesQuantity, wayPoints);
+            createAirplanePool(airplanesQuantity);
         }
 
-        initAirplaneFlightMap(wayPoints);
+        initAirplaneFlightMap();
 
         printPreviousFlightsInfo();
 
@@ -63,19 +63,17 @@ public class FlightService {
         }
     }
 
-    private void initAirplaneFlightMap(List<WayPoint> wayPoints) {
+    private void initAirplaneFlightMap() {
         airplaneFlightMap = airplanes.stream()
                 .collect(Collectors.toMap(airplane -> airplane,
                         airplane -> planeCalculation.calculateRoute(
                                 airplane.getAirplaneCharacteristics(), wayPoints)));
     }
 
-    private void createAirplanePool(int numOfAirplanes, List<WayPoint> wayPoints) {
+    private void createAirplanePool(int numOfAirplanes) {
         for (int airplaneNum = 1; airplaneNum <= numOfAirplanes; airplaneNum++) {
             Airplane airplane = createAirplane(airplaneNum, random.nextInt(MIN_FLY_SPEED, MAX_FLY_SPEED),
                     random.nextInt(MIN_ALTITUDE_SPEED, MAX_ALTITUDE_SPEED));
-//            Flight flight = buildFlight(wayPoints);
-//            airplane.getFlights().add(flight);
             airplanes.add(airplane);
         }
     }
@@ -83,19 +81,18 @@ public class FlightService {
     private void fly() {
         for (Map.Entry<Airplane, List<TemporaryPoint>> entry : airplaneFlightMap.entrySet()) {
             Airplane airplane = entry.getKey();
-            List<Flight> flightList = airplane.getFlights();
-
-            Flight flight = buildFlight(wayPoints);
-//            Flight currentFlight = flightList.get(flightList.size() - 1);
             List<TemporaryPoint> temporaryPoints = entry.getValue();
+            Flight currentFlight = buildFlight(wayPoints);
 
             for (TemporaryPoint temporaryPoint : temporaryPoints) {
                 airplane.setPosition(temporaryPoint);
                 currentFlight.getPassedPoints().add(temporaryPoint);
-
-                airplaneRepository.save(airplane);
             }
+
             currentFlight.setFlightDuration(temporaryPoints.size() * planeCalculation.getTIME_POINT_STEP());
+            airplane.getFlights().add(currentFlight);
+
+            airplaneRepository.save(airplane);
             flightRepository.save(currentFlight);
         }
     }
@@ -121,7 +118,7 @@ public class FlightService {
     }
 
     private List<WayPoint> createWayPoints() {
-        List<WayPoint> wayPoints = new ArrayList<>();
+        wayPoints = new ArrayList<>();
 
         int wayPointsNumber = random.nextInt(MIN_WAYPOINTS, MAX_WAYPOINTS);
         for (int i = 0; i < wayPointsNumber; i++) {
